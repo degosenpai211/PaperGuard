@@ -48,19 +48,6 @@ export default function Layout() {
           })}
         </nav>
 
-        {/* Storage + Upgrade */}
-        <div className="p-3 border-t border-outline-variant">
-          <div className="bg-surface-container-high rounded-xl p-3 mb-2">
-            <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Almacenamiento</p>
-            <div className="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden mb-1">
-              <div className="h-full bg-tertiary-container rounded-full" style={{ width: "65%" }} />
-            </div>
-            <p className="text-xs text-on-surface-variant">65% utilizado</p>
-          </div>
-          <button className="w-full py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:opacity-90 transition-opacity">
-            Upgrade Plan
-          </button>
-        </div>
       </aside>
 
       {/* Main */}
@@ -84,9 +71,6 @@ export default function Layout() {
             <button className="p-1.5 text-on-surface-variant hover:text-primary transition-colors">
               <Bell className="w-5 h-5" />
             </button>
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold select-none">
-              PG
-            </div>
           </div>
         </header>
 

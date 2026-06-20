@@ -68,9 +68,6 @@ function UploadForm() {
     <div className="flex items-center justify-center h-full p-6">
       <div className="w-full max-w-lg space-y-5">
         <div className="text-center">
-          <div className="w-14 h-14 bg-secondary-container rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Brain className="w-7 h-7 text-primary" />
-          </div>
           <h1 className="text-2xl font-bold text-on-surface">AI Workspace</h1>
           <p className="text-sm text-on-surface-variant mt-1">
             Subí un PDF para abrir el workspace de análisis inteligente.
