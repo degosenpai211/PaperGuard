@@ -4,7 +4,7 @@ import {
   Upload, FileText, X, AlertCircle, RefreshCw,
   ZoomIn, ZoomOut, ChevronLeft, ChevronRight,
   Sparkles, Save, Download, TrendingUp, BookCheck,
-  CheckCircle2, AlertTriangle, Bot, Brain,
+  CheckCircle2, AlertTriangle, Bot, Brain, Plus,
 } from "lucide-react";
 import { saveAnalysis, setPdfUrl, getPdfUrl, getAnalyses } from "../store";
 import type { Analysis } from "../store";
@@ -154,7 +154,7 @@ function UploadForm() {
 }
 
 /* ─── Split-view workspace ────────────────────────────────── */
-function AnalysisWorkspace({ doc }: { doc: Analysis }) {
+function AnalysisWorkspace({ doc, onNew }: { doc: Analysis; onNew: () => void }) {
   const navigate = useNavigate();
   const [zoom, setZoom] = useState(100);
   const [page, setPage] = useState(1);
@@ -365,6 +365,12 @@ function AnalysisWorkspace({ doc }: { doc: Analysis }) {
           </div>
           <div className="flex gap-2">
             <button
+              onClick={onNew}
+              className="flex items-center gap-1 px-2.5 py-1 bg-surface-container-high hover:bg-surface-container-highest rounded text-xs font-mono font-semibold text-on-surface transition-colors"
+            >
+              <Plus className="w-3 h-3" /> Nuevo análisis
+            </button>
+            <button
               onClick={() => navigate(`/history`)}
               className="flex items-center gap-1 px-2.5 py-1 bg-surface-container-high hover:bg-surface-container-highest rounded text-xs font-mono font-semibold text-on-surface transition-colors"
             >
@@ -535,13 +541,15 @@ function AnalysisWorkspace({ doc }: { doc: Analysis }) {
 
 /* ─── Page entry ─────────────────────────────────────────── */
 export default function AnalysisPage() {
+  const [showUpload, setShowUpload] = useState(false);
+
   const analyses = getAnalyses();
   const latestCompleted = analyses
     .filter((a) => a.status === "completed" || a.status === "flagged")
     .slice(-1)[0];
 
-  if (latestCompleted) {
-    return <AnalysisWorkspace doc={latestCompleted} />;
+  if (latestCompleted && !showUpload) {
+    return <AnalysisWorkspace doc={latestCompleted} onNew={() => setShowUpload(true)} />;
   }
   return <UploadForm />;
 }
