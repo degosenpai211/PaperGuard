@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, ScanSearch, History, FileText, Settings, Shield, Bell, Search, HelpCircle } from "lucide-react";
+import { LayoutDashboard, ScanSearch, History, FileText, Settings, Bell, Search, HelpCircle } from "lucide-react";
 
 const NAV = [
   { to: "/",            label: "Dashboard",     icon: LayoutDashboard },
@@ -18,9 +18,7 @@ export default function Layout() {
       <aside className="w-64 flex-shrink-0 flex flex-col bg-surface-container-low border-r border-outline-variant">
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-outline-variant">
-          <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-            <Shield className="w-5 h-5 text-white" />
-          </div>
+          <img src="/logoEMI.jpg" alt="EMI Logo" className="w-16 h-16 rounded-lg object-contain flex-shrink-0" />
           <div>
             <p className="text-sm font-bold text-on-surface leading-tight">Enterprise Plan</p>
             <p className="text-xs text-on-surface-variant">AI Document Platform</p>
