@@ -229,10 +229,27 @@ export default function ReportPage() {
         {/* Vista revisor */}
         {tab === "revisor" && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 p-4 rounded-2xl">
-              📊 Detalle técnico con evidencia y ubicación exacta. <br className="hidden sm:block" />
-              Ponderación: <span className="font-bold">IA 30%</span> · <span className="font-bold">Citas 25%</span> · <span className="font-bold">Patrones 20%</span> · <span className="font-bold">Sin respaldo 15%</span> · <span className="font-bold">Inyección 10%</span>
-            </p>
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">📊</span>
+                <p className="text-sm font-semibold text-indigo-700">Detalle técnico con evidencia y ubicación exacta</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "IA", pct: "30%", color: "bg-purple-100 text-purple-700 border-purple-200" },
+                  { label: "Citas", pct: "25%", color: "bg-blue-100 text-blue-700 border-blue-200" },
+                  { label: "Patrones", pct: "20%", color: "bg-cyan-100 text-cyan-700 border-cyan-200" },
+                  { label: "Sin respaldo", pct: "15%", color: "bg-amber-100 text-amber-700 border-amber-200" },
+                  { label: "Inyección", pct: "10%", color: "bg-rose-100 text-rose-700 border-rose-200" },
+                ].map(({ label, pct, color }) => (
+                  <span key={label} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${color}`}>
+                    <span>{label}</span>
+                    <span className="opacity-70">·</span>
+                    <span className="font-bold">{pct}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
             {MOCK.checks.map((c) => {
               const isOpen = openCheck === c.id;
               const barColor = c.score >= 80 ? "from-green-400 to-emerald-500" : c.score >= 60 ? "from-amber-400 to-yellow-500" : "from-red-400 to-rose-500";
