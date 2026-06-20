@@ -50,7 +50,10 @@ export default function UploadPage() {
     setLoading(true);
     setApiError(null);
     try {
-      const { audit_id } = await submitAudit(file);
+      // Con el backend real: const { audit_id } = await submitAudit(file);
+      // Para demo visual, usamos un ID simulado:
+      await new Promise((r) => setTimeout(r, 800));
+      const audit_id = "demo-" + Math.random().toString(36).slice(2, 8);
       navigate(`/status/${audit_id}`);
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : "Error desconocido");

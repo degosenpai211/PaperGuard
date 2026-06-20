@@ -1,46 +1,96 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Bot, ShieldAlert, BookOpen, Repeat2, AlertTriangle, ChevronDown, ChevronUp, ArrowLeft, Loader2 } from "lucide-react";
+import { Bot, ShieldAlert, BookOpen, Repeat2, AlertTriangle, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
 import ScoreGauge from "../components/ScoreGauge";
 import VerdictBadge from "../components/VerdictBadge";
-import { getAuditResult } from "../api";
-import type { AuditResult, Verdict } from "../types";
+import type { Verdict } from "../types";
 
-const CHECK_META: Record<string, { label: string; peso: string; icon: React.ReactNode }> = {
-  ai_detector: { label: "Detector de contenido IA",    peso: "30%", icon: <Bot className="w-4 h-4" /> },
-  injection:   { label: "Inyección de prompts",        peso: "10%", icon: <ShieldAlert className="w-4 h-4" /> },
-  citations:   { label: "Exactitud de citas",          peso: "25%", icon: <BookOpen className="w-4 h-4" /> },
-  patterns:    { label: "Patrones repetitivos",        peso: "20%", icon: <Repeat2 className="w-4 h-4" /> },
-  unsupported: { label: "Afirmaciones sin respaldo",   peso: "15%", icon: <AlertTriangle className="w-4 h-4" /> },
+/* ─── Datos mock que tu equipo reemplazará con la respuesta real de la API ─── */
+const MOCK = {
+  audit_id: "demo-abc123",
+  score_global: 71,
+  veredicto: "Revisión manual" as Verdict,
+  reporte_investigador: {
+    resumen: "El paper presenta señales de riesgo en citas y posible contenido IA en la introducción y conclusiones. Se recomienda revisión humana antes de aceptar.",
+    nivel_riesgo: "medio",
+  },
+  checks: [
+    {
+      id: "ai_detector",
+      label: "Detector de contenido IA",
+      icon: <Bot className="w-4 h-4" />,
+      score: 72,
+      peso: "30%",
+      resumen: "28% del texto presenta rasgos de generación por IA, especialmente en introducción y conclusiones.",
+      hallazgos: [
+        "Introducción (p.2): estilo homogéneo, frases prototípicas de LLM.",
+        "Conclusiones (p.9): vocabulario genérico sin especificidad técnica.",
+        "Metodología §3: estructura repetitiva característica de texto generado.",
+      ],
+    },
+    {
+      id: "injection",
+      label: "Inyección de prompts",
+      icon: <ShieldAlert className="w-4 h-4" />,
+      score: 95,
+      peso: "10%",
+      resumen: "Sin indicios de texto oculto, capas OCG sospechosas ni metadata alterada.",
+      hallazgos: [
+        "Texto visible: sin anomalías detectadas.",
+        "Metadata: autor y fechas coherentes entre sí.",
+        "Sin capas OCG ocultas en el documento.",
+      ],
+    },
+    {
+      id: "citations",
+      label: "Exactitud de citas",
+      icon: <BookOpen className="w-4 h-4" />,
+      score: 58,
+      peso: "25%",
+      resumen: "Solo el 58% de las referencias fue verificada en CrossRef / Semantic Scholar.",
+      hallazgos: [
+        "[Ref 3] García et al. 2021 — no encontrada en ninguna base de datos.",
+        "[Ref 7] DOI inválido: responde 404 en CrossRef.",
+        "[Ref 11] Año incorrecto: publicación original es 2019, no 2022.",
+        "[Ref 15] Título con discrepancias respecto al original publicado.",
+      ],
+    },
+    {
+      id: "patterns",
+      label: "Patrones repetitivos",
+      icon: <Repeat2 className="w-4 h-4" />,
+      score: 83,
+      peso: "20%",
+      resumen: "Nivel de repetición dentro de rangos normales para papers académicos.",
+      hallazgos: [
+        "Frase 'en el contexto de' aparece 6 veces — aceptable.",
+        "Sin párrafos duplicados detectados.",
+        "Similitud coseno inter-secciones: 0.18 (bajo).",
+      ],
+    },
+    {
+      id: "unsupported",
+      label: "Afirmaciones sin respaldo",
+      icon: <AlertTriangle className="w-4 h-4" />,
+      score: 65,
+      peso: "15%",
+      resumen: "4 afirmaciones factuales relevantes no tienen cita de respaldo cercana.",
+      hallazgos: [
+        "p.3: 'El 80% de los sistemas fallan en condiciones adversas' — sin cita.",
+        "p.5: 'Esta técnica es ampliamente aceptada en la comunidad' — sin cita.",
+        "p.6: 'Los modelos transformer superan en precisión a los anteriores' — sin cita.",
+        "p.8: 'Estudios recientes demuestran que…' — sin referencia concreta.",
+      ],
+    },
+  ],
+  secciones: [
+    { nombre: "Abstract",      score_ia: 45, score_confianza: 80 },
+    { nombre: "Introducción",  score_ia: 82, score_confianza: 62 },
+    { nombre: "Metodología",   score_ia: 55, score_confianza: 75 },
+    { nombre: "Resultados",    score_ia: 38, score_confianza: 88 },
+    { nombre: "Conclusión",    score_ia: 78, score_confianza: 58 },
+  ],
 };
-
-function checkHallazgos(id: string, data: Record<string, unknown>): string[] {
-  const list: string[] = [];
-  if (id === "citations") {
-    const items = (data.no_encontradas as string[] | undefined) ?? [];
-    items.slice(0, 5).forEach((r) => list.push(`Referencia no verificada: ${r}`));
-  } else if (id === "patterns") {
-    const items = (data.repetidos as Array<{ par: number[]; similitud: number }> | undefined) ?? [];
-    items.slice(0, 5).forEach((r) => list.push(`Párrafos ${r.par[0] + 1} y ${r.par[1] + 1} — similitud ${(r.similitud * 100).toFixed(0)}%`));
-  } else if (id === "injection") {
-    const items = (data.hallazgos as Array<{ tipo: string; campo?: string; pagina?: number; preview?: string }> | undefined) ?? [];
-    items.slice(0, 5).forEach((h) =>
-      list.push(h.tipo === "metadata" ? `Metadata sospechosa: campo "${h.campo}"` : `Texto oculto pág. ${h.pagina}: "${h.preview}"`)
-    );
-  } else if (id === "ai_detector" && data.error) {
-    list.push(`Servicio IA no disponible: ${data.error}`);
-  }
-  return list.length ? list : ["Sin hallazgos registrados para este check."];
-}
-
-function checkResumen(id: string, riskScore: number): string {
-  const safe = 100 - riskScore;
-  if (id === "ai_detector") return riskScore > 50 ? `Score de riesgo IA: ${riskScore}/100. Se detectaron posibles patrones de contenido generado.` : `Score de riesgo IA: ${riskScore}/100. Sin patrones significativos de IA.`;
-  if (id === "citations") return `${safe}% de las referencias pudo verificarse en CrossRef. ${riskScore}% marcadas como no encontradas.`;
-  if (id === "patterns") return riskScore > 0 ? `Se detectaron fragmentos con similitud alta entre párrafos.` : "Sin patrones repetitivos significativos.";
-  if (id === "injection") return riskScore > 0 ? "Se encontraron indicios de texto oculto o metadata sospechosa." : "Sin texto oculto, metadata limpia.";
-  return "Check pendiente de implementación.";
-}
 
 type Tab = "investigador" | "revisor";
 
@@ -49,51 +99,6 @@ export default function ReportPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("investigador");
   const [openCheck, setOpenCheck] = useState<string | null>(null);
-  const [data, setData] = useState<AuditResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!id) return;
-    getAuditResult(id)
-      .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : "Error al cargar el reporte"));
-  }, [id]);
-
-  if (error) {
-    return (
-      <div className="max-w-xl mx-auto text-center py-20">
-        <p className="text-red-600 font-semibold mb-4">{error}</p>
-        <button onClick={() => navigate("/")} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm">
-          Volver al inicio
-        </button>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="max-w-xl mx-auto flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-        <p className="text-gray-500 text-sm">Cargando reporte…</p>
-      </div>
-    );
-  }
-
-  // Invertir score_global (riesgo → seguridad) para los gauges del frontend
-  const displayScore = 100 - data.score_global;
-  const checks = Object.entries(data.checks).map(([checkId, check]) => ({
-    id: checkId,
-    ...CHECK_META[checkId],
-    score: 100 - check.score,   // convertir riesgo → seguridad
-    riskScore: check.score,
-    resumen: checkResumen(checkId, check.score),
-    hallazgos: checkHallazgos(checkId, check.data),
-  }));
-  const secciones = Object.entries(data.secciones).map(([nombre, s]) => ({
-    nombre,
-    score_ia: s.score_ia,
-    score_confianza: 75,
-  }));
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -104,7 +109,7 @@ export default function ReportPage() {
             onClick={() => navigate("/")}
             className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors group"
           >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
             Nuevo análisis
           </button>
           <div className="space-y-2">
@@ -112,7 +117,7 @@ export default function ReportPage() {
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-mono bg-gray-100 px-3 py-1 rounded-lg">#{id}</span>
               <span>·</span>
-              <span>✅ Análisis completado</span>
+              <span>✅ Análisis completado · 3m 42s</span>
             </div>
           </div>
         </div>
@@ -121,40 +126,38 @@ export default function ReportPage() {
       {/* Score + Veredicto */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center">
-          <ScoreGauge score={displayScore} />
+          <ScoreGauge score={MOCK.score_global} />
         </div>
         <div>
-          <VerdictBadge verdict={data.veredicto as Verdict} />
+          <VerdictBadge verdict={MOCK.veredicto} />
         </div>
       </div>
 
       {/* Secciones por score IA */}
-      {secciones.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-lg">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Análisis por sección</h2>
-          <div className="space-y-4">
-            {secciones.map((s) => {
-              const color = s.score_ia >= 70 ? "from-red-400 to-red-500" : s.score_ia >= 45 ? "from-amber-400 to-amber-500" : "from-green-400 to-emerald-500";
-              const riskLabel = s.score_ia >= 70 ? "Alto riesgo IA" : s.score_ia >= 45 ? "Riesgo medio" : "Bajo riesgo";
-              return (
-                <div key={s.nombre} className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-gray-50 to-gray-100">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-bold text-gray-900 capitalize">{s.nombre}</h3>
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r ${color} text-white`}>
-                        {s.score_ia}% {riskLabel}
-                      </span>
-                    </div>
-                    <div className="h-2.5 bg-white rounded-full overflow-hidden shadow-sm">
-                      <div className={`h-full bg-gradient-to-r ${color} rounded-full transition-all duration-700`} style={{ width: `${s.score_ia}%` }} />
-                    </div>
+      <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-lg">
+        <h2 className="text-xl font-bold text-gray-900 mb-6">Análisis por sección</h2>
+        <div className="space-y-4">
+          {MOCK.secciones.map((s) => {
+            const color = s.score_ia >= 70 ? "from-red-400 to-red-500" : s.score_ia >= 45 ? "from-amber-400 to-amber-500" : "from-green-400 to-emerald-500";
+            const riskLabel = s.score_ia >= 70 ? "Alto riesgo IA" : s.score_ia >= 45 ? "Riesgo medio" : "Bajo riesgo";
+            return (
+              <div key={s.nombre} className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-150 transition-colors">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-gray-900">{s.nombre}</h3>
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r ${color} text-white`}>
+                      {s.score_ia}% {riskLabel}
+                    </span>
+                  </div>
+                  <div className="h-2.5 bg-white rounded-full overflow-hidden shadow-sm">
+                    <div className={`h-full bg-gradient-to-r ${color} rounded-full transition-all duration-700`} style={{ width: `${s.score_ia}%` }} />
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
 
       {/* Tabs */}
       <div>
@@ -164,8 +167,8 @@ export default function ReportPage() {
               key={t}
               onClick={() => setTab(t)}
               className={`px-6 py-2.5 text-sm font-bold rounded-xl transition-all capitalize ${
-                tab === t
-                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg"
+                tab === t 
+                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg" 
                   : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
               }`}
             >
@@ -178,16 +181,16 @@ export default function ReportPage() {
         {tab === "investigador" && (
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-3xl p-6">
-              <p className="text-gray-900 leading-relaxed font-medium">{data.reporte_investigador.resumen}</p>
+              <p className="text-gray-900 leading-relaxed font-medium">{MOCK.reporte_investigador.resumen}</p>
             </div>
-
-            {checks.map((c) => {
-              const sev = c.score >= 80
+            
+            {MOCK.checks.map((c) => {
+              const sev = c.score >= 80 
                 ? { badge: "bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border border-green-200", label: "✅ Aprobado", color: "text-green-600" }
-                : c.score >= 60
+                : c.score >= 60 
                 ? { badge: "bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 border border-amber-200", label: "⚠️ Atención", color: "text-amber-600" }
                 : { badge: "bg-gradient-to-r from-red-100 to-rose-100 text-red-700 border border-red-200", label: "❌ Crítico", color: "text-red-600" };
-
+              
               return (
                 <div key={c.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
                   <div className="flex items-start gap-4">
@@ -197,18 +200,20 @@ export default function ReportPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold text-gray-900">{c.label}</h3>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${sev.badge}`}>{sev.label}</span>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${sev.badge}`}>
+                          {sev.label}
+                        </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-3">{c.resumen}</p>
                       <div className="flex items-center gap-3">
                         <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden max-w-xs">
-                          <div
+                          <div 
                             className={`h-full ${
                               c.score >= 80 ? "bg-gradient-to-r from-green-400 to-emerald-500" :
                               c.score >= 60 ? "bg-gradient-to-r from-amber-400 to-yellow-500" :
                               "bg-gradient-to-r from-red-400 to-rose-500"
-                            }`}
-                            style={{ width: `${c.score}%` }}
+                            }`} 
+                            style={{ width: `${c.score}%` }} 
                           />
                         </div>
                         <span className="text-lg font-bold text-gray-900 min-w-[60px] text-right">{c.score}/100</span>
@@ -224,11 +229,28 @@ export default function ReportPage() {
         {/* Vista revisor */}
         {tab === "revisor" && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 p-4 rounded-2xl">
-              📊 Detalle técnico con evidencia y ubicación exacta. <br className="hidden sm:block" />
-              Ponderación: <span className="font-bold">IA 30%</span> · <span className="font-bold">Citas 25%</span> · <span className="font-bold">Patrones 20%</span> · <span className="font-bold">Sin respaldo 15%</span> · <span className="font-bold">Inyección 10%</span>
-            </p>
-            {checks.map((c) => {
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">📊</span>
+                <p className="text-sm font-semibold text-indigo-700">Detalle técnico con evidencia y ubicación exacta</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "IA", pct: "30%", color: "bg-purple-100 text-purple-700 border-purple-200" },
+                  { label: "Citas", pct: "25%", color: "bg-blue-100 text-blue-700 border-blue-200" },
+                  { label: "Patrones", pct: "20%", color: "bg-cyan-100 text-cyan-700 border-cyan-200" },
+                  { label: "Sin respaldo", pct: "15%", color: "bg-amber-100 text-amber-700 border-amber-200" },
+                  { label: "Inyección", pct: "10%", color: "bg-rose-100 text-rose-700 border-rose-200" },
+                ].map(({ label, pct, color }) => (
+                  <span key={label} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${color}`}>
+                    <span>{label}</span>
+                    <span className="opacity-70">·</span>
+                    <span className="font-bold">{pct}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            {MOCK.checks.map((c) => {
               const isOpen = openCheck === c.id;
               const barColor = c.score >= 80 ? "from-green-400 to-emerald-500" : c.score >= 60 ? "from-amber-400 to-yellow-500" : "from-red-400 to-rose-500";
               return (
@@ -252,7 +274,9 @@ export default function ReportPage() {
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <span className="text-2xl font-bold text-gray-900">{c.score}</span>
                       <span className="text-sm text-gray-500">/100</span>
-                      {isOpen ? <ChevronUp className="w-5 h-5 text-blue-600" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                      {isOpen
+                        ? <ChevronUp className="w-5 h-5 text-blue-600" />
+                        : <ChevronDown className="w-5 h-5 text-gray-400" />}
                     </div>
                   </button>
 
@@ -264,7 +288,7 @@ export default function ReportPage() {
                       <div className="space-y-2">
                         <h5 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Hallazgos</h5>
                         {c.hallazgos.map((h, i) => (
-                          <div key={i} className="flex items-start gap-3 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-3.5">
+                          <div key={i} className="flex items-start gap-3 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-3.5 hover:border-blue-200 transition-colors">
                             <span className="font-mono text-xs font-bold text-blue-600 flex-shrink-0 bg-blue-100 px-2.5 py-1 rounded min-w-[32px] text-center">
                               {String(i + 1).padStart(2, "0")}
                             </span>
