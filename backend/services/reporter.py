@@ -29,9 +29,9 @@ def consolidate(
         + injection.score * _WEIGHTS["injection"]
     )
 
-    if score >= 60:
+    if score >= 50:
         veredicto = "Rechazado"
-    elif score >= 30:
+    elif score >= 20:
         veredicto = "Revisión manual"
     else:
         veredicto = "Aprobado"
