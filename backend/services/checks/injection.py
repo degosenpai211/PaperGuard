@@ -96,10 +96,11 @@ def _decode_base64_fragments(text: str) -> list[str]:
 
 def _ref_flood(refs: list[str], word_count: int) -> bool:
     """
-    Flood de referencias: ratio >1 referencia cada 50 palabras es sospechoso.
+    Flood de referencias: ratio >1 ref cada 50 palabras es sospechoso.
     Un paper de 5000 palabras con 200 refs está inflando para diluir % no-verificadas.
+    El audit ya valida word_count > 500 antes de llegar aquí.
     """
-    if not refs or word_count < 500:
+    if not refs or word_count < 1:
         return False
     return len(refs) / (word_count / 50) > 2.0
 
