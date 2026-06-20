@@ -6,7 +6,7 @@ import {
   Sparkles, Save, Download, TrendingUp, BookCheck,
   CheckCircle2, AlertTriangle, Bot, Brain,
 } from "lucide-react";
-import { saveAnalysis, getAnalyses } from "../store";
+import { saveAnalysis, setPdfUrl, getPdfUrl, getAnalyses } from "../store";
 import type { Analysis } from "../store";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -51,6 +51,7 @@ function UploadForm() {
     await new Promise((r) => setTimeout(r, 800));
     const id = "demo-" + Math.random().toString(36).slice(2, 8);
     const now = new Date();
+    setPdfUrl(id, file);
     saveAnalysis({
       id,
       name: file.name,
@@ -158,6 +159,7 @@ function AnalysisWorkspace({ doc }: { doc: Analysis }) {
   const [zoom, setZoom] = useState(100);
   const [page, setPage] = useState(1);
   const totalPages = 24;
+  const pdfUrl = getPdfUrl(doc.id);
 
   const score = doc.score;
   const isHigh = score >= 80;
@@ -292,61 +294,64 @@ function AnalysisWorkspace({ doc }: { doc: Analysis }) {
         </div>
 
         {/* PDF canvas */}
-        <div
-          className="flex-grow overflow-auto p-8 flex justify-center custom-scrollbar"
-          style={{
-            backgroundImage: "radial-gradient(#cbd5e1 0.5px, transparent 0.5px)",
-            backgroundSize: "16px 16px",
-          }}
-        >
-          <div
-            className="bg-white shadow-lg w-full max-w-[700px] min-h-[1000px] p-12 relative border border-outline-variant space-y-5"
-            style={{ transformOrigin: "top center", transform: `scale(${zoom / 100})` }}
-          >
-            {/* Simulated document content */}
-            <div className="h-7 bg-surface-container-high w-3/4 rounded" />
-            <div className="space-y-2">
-              <div className="h-3.5 bg-surface-container w-full rounded" />
-              <div className="h-3.5 bg-surface-container w-full rounded" />
-              <div className="h-3.5 bg-surface-container w-5/6 rounded" />
-            </div>
-
-            <div className="h-52 bg-surface-container-low w-full rounded-lg border border-outline-variant border-dashed flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-surface-container-high rounded-lg mx-auto mb-2 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-on-surface-variant" />
+        <div className="flex-grow overflow-hidden relative">
+          {pdfUrl ? (
+            <iframe
+              src={`${pdfUrl}#zoom=${zoom}&page=${page}`}
+              className="w-full h-full border-none"
+              title={doc.name}
+            />
+          ) : (
+            /* Fallback: simulated canvas when no blob URL (e.g. after page refresh) */
+            <div
+              className="w-full h-full overflow-auto p-8 flex justify-center custom-scrollbar"
+              style={{
+                backgroundImage: "radial-gradient(#cbd5e1 0.5px, transparent 0.5px)",
+                backgroundSize: "16px 16px",
+              }}
+            >
+              <div
+                className="bg-white shadow-lg w-full max-w-[700px] min-h-[1000px] p-12 relative border border-outline-variant space-y-5"
+                style={{ transformOrigin: "top center", transform: `scale(${zoom / 100})` }}
+              >
+                <div className="h-7 bg-surface-container-high w-3/4 rounded" />
+                <div className="space-y-2">
+                  <div className="h-3.5 bg-surface-container w-full rounded" />
+                  <div className="h-3.5 bg-surface-container w-full rounded" />
+                  <div className="h-3.5 bg-surface-container w-5/6 rounded" />
                 </div>
-                <p className="text-xs text-on-surface-variant">Figure 1 — Technical Diagram</p>
+                <div className="h-52 bg-surface-container-low w-full rounded-lg border border-outline-variant border-dashed flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-surface-container-high rounded-lg mx-auto mb-2 flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-on-surface-variant" />
+                    </div>
+                    <p className="text-xs text-on-surface-variant">Figure 1 — Technical Diagram</p>
+                  </div>
+                </div>
+                <div className="relative">
+                  <div className="absolute -inset-1 bg-primary/10 rounded ring-1 ring-primary/30" />
+                  <div className="h-3.5 bg-surface-container w-full rounded" />
+                  <div className="h-3.5 bg-surface-container w-11/12 rounded mt-2" />
+                  <span className="absolute -right-7 top-0 text-[9px] bg-primary text-white px-1 py-0.5 rounded font-mono">#P1</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3.5 bg-surface-container w-full rounded" />
+                  <div className="h-3.5 bg-surface-container w-full rounded" />
+                  <div className="h-3.5 bg-surface-container w-2/3 rounded" />
+                </div>
+                <div className="relative">
+                  <div className="absolute -inset-1 bg-tertiary-fixed-dim/20 rounded ring-1 ring-tertiary-container/30" />
+                  <div className="h-3.5 bg-surface-container w-full rounded" />
+                  <div className="h-3.5 bg-surface-container w-5/6 rounded mt-2" />
+                  <span className="absolute -right-7 top-0 text-[9px] bg-tertiary-container text-white px-1 py-0.5 rounded font-mono">#C1</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3.5 bg-surface-container w-full rounded" />
+                  <div className="h-3.5 bg-surface-container w-3/4 rounded" />
+                </div>
               </div>
             </div>
-
-            {/* Highlighted passage #P1 */}
-            <div className="relative">
-              <div className="absolute -inset-1 bg-primary/10 rounded ring-1 ring-primary/30" />
-              <div className="h-3.5 bg-surface-container w-full rounded" />
-              <div className="h-3.5 bg-surface-container w-11/12 rounded mt-2" />
-              <span className="absolute -right-7 top-0 text-[9px] bg-primary text-white px-1 py-0.5 rounded font-mono">#P1</span>
-            </div>
-
-            <div className="space-y-2">
-              <div className="h-3.5 bg-surface-container w-full rounded" />
-              <div className="h-3.5 bg-surface-container w-full rounded" />
-              <div className="h-3.5 bg-surface-container w-2/3 rounded" />
-            </div>
-
-            {/* Highlighted passage #C1 */}
-            <div className="relative">
-              <div className="absolute -inset-1 bg-tertiary-fixed-dim/20 rounded ring-1 ring-tertiary-container/30" />
-              <div className="h-3.5 bg-surface-container w-full rounded" />
-              <div className="h-3.5 bg-surface-container w-5/6 rounded mt-2" />
-              <span className="absolute -right-7 top-0 text-[9px] bg-tertiary-container text-white px-1 py-0.5 rounded font-mono">#C1</span>
-            </div>
-
-            <div className="space-y-2">
-              <div className="h-3.5 bg-surface-container w-full rounded" />
-              <div className="h-3.5 bg-surface-container w-3/4 rounded" />
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

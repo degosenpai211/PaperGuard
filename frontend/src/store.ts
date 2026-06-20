@@ -1,3 +1,18 @@
+// In-memory map: analysis id → object URL for the uploaded PDF blob.
+// Survives navigation within the same session but clears on page refresh.
+const pdfUrlMap = new Map<string, string>();
+
+export function setPdfUrl(id: string, file: File) {
+  // Revoke any previous URL for this id to avoid memory leaks
+  const prev = pdfUrlMap.get(id);
+  if (prev) URL.revokeObjectURL(prev);
+  pdfUrlMap.set(id, URL.createObjectURL(file));
+}
+
+export function getPdfUrl(id: string): string | null {
+  return pdfUrlMap.get(id) ?? null;
+}
+
 export interface Analysis {
   id: string;
   name: string;

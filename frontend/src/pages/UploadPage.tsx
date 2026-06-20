@@ -1,7 +1,7 @@
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, FileText, X, AlertCircle, RefreshCw, CheckCircle2, Zap, CalendarDays, ShieldCheck, Plus } from "lucide-react";
-import { saveAnalysis } from "../store";
+import { saveAnalysis, setPdfUrl } from "../store";
 
 const STATS = [
   { icon: CheckCircle2, label: "FEATURES ACTIVAS", value: "12 / 18", bg: "bg-secondary-container",    iconColor: "text-primary" },
@@ -74,6 +74,7 @@ export default function UploadPage() {
     await new Promise((r) => setTimeout(r, 800));
     const id = "demo-" + Math.random().toString(36).slice(2, 8);
     const now = new Date();
+    setPdfUrl(id, file);
     saveAnalysis({
       id,
       name: file.name,
