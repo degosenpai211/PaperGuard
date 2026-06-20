@@ -3,27 +3,30 @@ import type { Verdict } from "../types";
 
 const CONFIG = {
   Aprobado: {
-    dot: "🟢",
-    icon: <CheckCircle className="w-5 h-5 text-green-500" />,
-    bg: "bg-green-50",
+    icon: <CheckCircle className="w-6 h-6 text-green-500" />,
+    bg: "bg-gradient-to-br from-green-50 to-emerald-50",
     border: "border-green-200",
-    text: "text-green-800",
+    text: "text-green-900",
+    subtitle: "text-green-700",
+    badge: "bg-green-100 text-green-700",
     desc: "El paper superó todos los controles sin observaciones significativas.",
   },
   "Revisión manual": {
-    dot: "🟡",
-    icon: <AlertCircle className="w-5 h-5 text-amber-500" />,
-    bg: "bg-amber-50",
+    icon: <AlertCircle className="w-6 h-6 text-amber-500" />,
+    bg: "bg-gradient-to-br from-amber-50 to-yellow-50",
     border: "border-amber-200",
-    text: "text-amber-800",
+    text: "text-amber-900",
+    subtitle: "text-amber-700",
+    badge: "bg-amber-100 text-amber-700",
     desc: "Se detectaron señales de riesgo. Se recomienda revisión humana antes de aceptar.",
   },
   Rechazado: {
-    dot: "🔴",
-    icon: <XCircle className="w-5 h-5 text-red-500" />,
-    bg: "bg-red-50",
+    icon: <XCircle className="w-6 h-6 text-red-500" />,
+    bg: "bg-gradient-to-br from-red-50 to-rose-50",
     border: "border-red-200",
-    text: "text-red-800",
+    text: "text-red-900",
+    subtitle: "text-red-700",
+    badge: "bg-red-100 text-red-700",
     desc: "El paper no cumple criterios mínimos de calidad editorial.",
   },
 };
@@ -31,11 +34,12 @@ const CONFIG = {
 export default function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const c = CONFIG[verdict];
   return (
-    <div className={`rounded-2xl border p-5 flex flex-col justify-center gap-2 ${c.bg} ${c.border}`}>
-      <div className={`flex items-center gap-2 font-bold text-lg ${c.text}`}>
-        {c.icon} {c.dot} {verdict}
+    <div className={`rounded-2xl border-2 p-6 flex flex-col gap-3 ${c.bg} ${c.border} shadow-lg hover:shadow-xl transition-shadow`}>
+      <div className={`flex items-center gap-3 font-bold text-xl ${c.text}`}>
+        {c.icon}
+        <span>{verdict}</span>
       </div>
-      <p className={`text-sm ${c.text}`}>{c.desc}</p>
+      <p className={`text-sm leading-relaxed font-medium ${c.subtitle}`}>{c.desc}</p>
     </div>
   );
 }

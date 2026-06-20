@@ -101,44 +101,58 @@ export default function ReportPage() {
   const [openCheck, setOpenCheck] = useState<string | null>(null);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between gap-6 mb-8">
         <div>
           <button
             onClick={() => navigate("/")}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-2 transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors group"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Nuevo análisis
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
+            Nuevo análisis
           </button>
-          <p className="text-xs font-mono text-gray-400">Reporte #{id}</p>
-          <h1 className="text-2xl font-bold text-gray-900 mt-0.5">Resultado de auditoría</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Análisis completado · 3m 42s</p>
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold text-gray-900">Resultado de auditoría</h1>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-mono bg-gray-100 px-3 py-1 rounded-lg">#{id}</span>
+              <span>·</span>
+              <span>✅ Análisis completado · 3m 42s</span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Score + Veredicto */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 flex items-center justify-center shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center">
           <ScoreGauge score={MOCK.score_global} />
         </div>
-        <VerdictBadge verdict={MOCK.veredicto} />
+        <div>
+          <VerdictBadge verdict={MOCK.veredicto} />
+        </div>
       </div>
 
       {/* Secciones por score IA */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Score IA por sección</h2>
-        <div className="space-y-3">
+      <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-lg">
+        <h2 className="text-xl font-bold text-gray-900 mb-6">Análisis por sección</h2>
+        <div className="space-y-4">
           {MOCK.secciones.map((s) => {
-            const color = s.score_ia >= 70 ? "bg-red-400" : s.score_ia >= 45 ? "bg-amber-400" : "bg-green-400";
-            const dot = s.score_ia >= 70 ? "🔴" : s.score_ia >= 45 ? "🟡" : "🟢";
+            const color = s.score_ia >= 70 ? "from-red-400 to-red-500" : s.score_ia >= 45 ? "from-amber-400 to-amber-500" : "from-green-400 to-emerald-500";
+            const riskLabel = s.score_ia >= 70 ? "Alto riesgo IA" : s.score_ia >= 45 ? "Riesgo medio" : "Bajo riesgo";
             return (
-              <div key={s.nombre} className="flex items-center gap-3">
-                <span className="text-xs w-28 text-gray-600 flex-shrink-0">{dot} {s.nombre}</span>
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${s.score_ia}%` }} />
+              <div key={s.nombre} className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-150 transition-colors">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-gray-900">{s.nombre}</h3>
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r ${color} text-white`}>
+                      {s.score_ia}% {riskLabel}
+                    </span>
+                  </div>
+                  <div className="h-2.5 bg-white rounded-full overflow-hidden shadow-sm">
+                    <div className={`h-full bg-gradient-to-r ${color} rounded-full transition-all duration-700`} style={{ width: `${s.score_ia}%` }} />
+                  </div>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 w-8 text-right">{s.score_ia}</span>
               </div>
             );
           })}
@@ -147,13 +161,16 @@ export default function ReportPage() {
 
       {/* Tabs */}
       <div>
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit mb-5">
+        <div className="flex gap-2 p-2 bg-gray-100 rounded-2xl w-fit mb-8">
           {(["investigador", "revisor"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors capitalize
-                ${tab === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-700"}`}
+              className={`px-6 py-2.5 text-sm font-bold rounded-xl transition-all capitalize ${
+                tab === t 
+                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg" 
+                  : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
+              }`}
             >
               Vista {t}
             </button>
@@ -162,29 +179,46 @@ export default function ReportPage() {
 
         {/* Vista investigador */}
         {tab === "investigador" && (
-          <div className="space-y-3">
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-              <p className="text-sm text-gray-700 leading-relaxed">{MOCK.reporte_investigador.resumen}</p>
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-3xl p-6">
+              <p className="text-gray-900 leading-relaxed font-medium">{MOCK.reporte_investigador.resumen}</p>
             </div>
+            
             {MOCK.checks.map((c) => {
-              const sev = c.score >= 80 ? { badge: "bg-green-100 text-green-700", label: "OK" }
-                : c.score >= 60 ? { badge: "bg-amber-100 text-amber-700", label: "Atención" }
-                : { badge: "bg-red-100 text-red-700", label: "Crítico" };
+              const sev = c.score >= 80 
+                ? { badge: "bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border border-green-200", label: "✅ Aprobado", color: "text-green-600" }
+                : c.score >= 60 
+                ? { badge: "bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 border border-amber-200", label: "⚠️ Atención", color: "text-amber-600" }
+                : { badge: "bg-gradient-to-r from-red-100 to-rose-100 text-red-700 border border-red-200", label: "❌ Crítico", color: "text-red-600" };
+              
               return (
-                <div key={c.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-4 shadow-sm">
-                  <div className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0">
-                    {c.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-semibold text-gray-800">{c.label}</span>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sev.badge}`}>{sev.label}</span>
+                <div key={c.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${sev.color} bg-opacity-10`}>
+                      {c.icon}
                     </div>
-                    <p className="text-xs text-gray-400 truncate">{c.resumen}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className="text-lg font-bold text-gray-800">{c.score}</span>
-                    <p className="text-xs text-gray-400">/100</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-bold text-gray-900">{c.label}</h3>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${sev.badge}`}>
+                          {sev.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">{c.resumen}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden max-w-xs">
+                          <div 
+                            className={`h-full ${
+                              c.score >= 80 ? "bg-gradient-to-r from-green-400 to-emerald-500" :
+                              c.score >= 60 ? "bg-gradient-to-r from-amber-400 to-yellow-500" :
+                              "bg-gradient-to-r from-red-400 to-rose-500"
+                            }`} 
+                            style={{ width: `${c.score}%` }} 
+                          />
+                        </div>
+                        <span className="text-lg font-bold text-gray-900 min-w-[60px] text-right">{c.score}/100</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
@@ -194,48 +228,57 @@ export default function ReportPage() {
 
         {/* Vista revisor */}
         {tab === "revisor" && (
-          <div className="space-y-2">
-            <p className="text-xs text-gray-400 mb-4">
-              Detalle técnico con evidencia y ubicación exacta. Pesos: IA 30% · Citas 25% · Patrones 20% · Sin respaldo 15% · Inyección 10%.
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 p-4 rounded-2xl">
+              📊 Detalle técnico con evidencia y ubicación exacta. <br className="hidden sm:block" />
+              Ponderación: <span className="font-bold">IA 30%</span> · <span className="font-bold">Citas 25%</span> · <span className="font-bold">Patrones 20%</span> · <span className="font-bold">Sin respaldo 15%</span> · <span className="font-bold">Inyección 10%</span>
             </p>
             {MOCK.checks.map((c) => {
               const isOpen = openCheck === c.id;
-              const barColor = c.score >= 80 ? "bg-green-400" : c.score >= 60 ? "bg-amber-400" : "bg-red-400";
+              const barColor = c.score >= 80 ? "from-green-400 to-emerald-500" : c.score >= 60 ? "from-amber-400 to-yellow-500" : "from-red-400 to-rose-500";
               return (
-                <div key={c.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                <div key={c.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
                   <button
                     onClick={() => setOpenCheck(isOpen ? null : c.id)}
-                    className="w-full flex items-center gap-4 p-4 text-left hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center gap-4 p-6 text-left hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 transition-all"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white flex-shrink-0 bg-gradient-to-r ${barColor}`}>
                       {c.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-800">{c.label}</span>
-                        <span className="text-xs text-gray-400">peso {c.peso}</span>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-bold text-gray-900 text-lg">{c.label}</h4>
+                        <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">peso {c.peso}</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 w-36 bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full ${barColor} rounded-full`} style={{ width: `${c.score}%` }} />
+                      <div className="h-2 w-64 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full bg-gradient-to-r ${barColor} rounded-full`} style={{ width: `${c.score}%` }} />
                       </div>
                     </div>
-                    <span className="text-sm font-bold text-gray-700 flex-shrink-0">{c.score}/100</span>
-                    {isOpen
-                      ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-2xl font-bold text-gray-900">{c.score}</span>
+                      <span className="text-sm text-gray-500">/100</span>
+                      {isOpen
+                        ? <ChevronUp className="w-5 h-5 text-blue-600" />
+                        : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                    </div>
                   </button>
 
                   {isOpen && (
-                    <div className="px-4 pb-4 border-t border-gray-50">
-                      <p className="text-sm text-gray-600 py-3">{c.resumen}</p>
-                      <ul className="space-y-1.5">
+                    <div className="px-6 pb-6 border-t border-gray-100 pt-6 space-y-4">
+                      <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
+                        <p className="text-sm text-gray-900 leading-relaxed font-medium">{c.resumen}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <h5 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Hallazgos</h5>
                         {c.hallazgos.map((h, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-                            <span className="font-mono text-gray-300 flex-shrink-0 mt-0.5">{String(i + 1).padStart(2, "0")}</span>
-                            {h}
-                          </li>
+                          <div key={i} className="flex items-start gap-3 bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-3.5 hover:border-blue-200 transition-colors">
+                            <span className="font-mono text-xs font-bold text-blue-600 flex-shrink-0 bg-blue-100 px-2.5 py-1 rounded min-w-[32px] text-center">
+                              {String(i + 1).padStart(2, "0")}
+                            </span>
+                            <p className="text-sm text-gray-700 leading-relaxed pt-0.5">{h}</p>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
                 </div>
