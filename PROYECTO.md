@@ -13,120 +13,139 @@ Revisores y revistas reciben manuscritos con uso flojo o irresponsable de IA: re
 
 ---
 
-## Solución
-
-Pipeline: **PDF → Markdown estructurado → segmentación por secciones → RAG sobre el paper → análisis LLM → reporte dual en español.**
-
-```
-PDF upload
-   │
-   ▼
-MarkItDown / pdfplumber   ← extracción + sanitización anti-injection
-   │
-   ▼
-Markdown estructurado
-   │
-   ▼
-Segmentador de secciones  ← abstract · intro · método · resultados · discusión · conclusión · refs
-   │
-   ▼
-Embeddings + vectra        ← RAG sobre el propio paper
-   │
-   ▼
-Claude Sonnet              ← análisis por sección + validación de citas
-   │
-   ▼
-Reporte dual JSON          ← investigador (detallado) + revisor (resumen ejecutivo)
-   │
-   ▼
-UI Next.js → Vercel        ← upload · progreso · reporte visual
-```
-
----
-
 ## Stack
 
-| Capa | Herramienta |
-|---|---|
-| Frontend / deploy | Next.js 14 App Router → Vercel |
-| Backend / API | Next.js API Routes (monorepo, sin servicio separado) |
-| Extracción PDF | `pdf-parse` (Node) — migrar a `pdfplumber` si la calidad es insuficiente* |
-| PDF → Markdown | `markitdown` (Microsoft) |
-| Embeddings | `@anthropic-ai/sdk` Claude embeddings |
-| Vector store | `vectra` (in-memory, sin infra extra) |
-| LLM | Claude Sonnet 4.x |
-| Validación de citas | regex APA/IEEE + llamada a Claude |
+| Capa | Herramienta | Deploy |
+|---|---|---|
+| Frontend | React + Vite + TypeScript + TailwindCSS | Vercel |
+| Backend / API | Python 3.11 + FastAPI + uvicorn | Railway |
+| Extracción PDF | `pdfplumber` (texto visible) + `pymupdf` (capas ocultas, bbox, metadata) | — |
+| PDF → Markdown | `markitdown` (Microsoft) | — |
+| Embeddings + RAG | `anthropic` SDK + `chromadb` in-memory | — |
+| LLM | Claude Sonnet 4.x | — |
+| Verificación de citas | CrossRef API + Semantic Scholar API (gratuitas) | — |
+| Detección de parafraseo | n-gramas + coseno (`scikit-learn`) + prompt Claude | — |
 
-> *Decisión a tomar en F1. Si se necesita `pdfplumber` (Python), se expone como Vercel Function.
+> **¿Por qué Railway para FastAPI?** Vercel Python Functions tienen límite de 250 MB y no soportan `pdfplumber` + `pymupdf` + `chromadb` juntas. Railway corre Docker sin esas restricciones. El frontend en Vercel llama al backend en Railway por HTTPS.
 
 ---
 
-## Backlog priorizado
+## Estructura de carpetas
 
-### MUST — P1 (MVP para demo)
-
-| # | Tarea | Fase |
-|---|---|---|
-| M1 | Extracción de texto PDF | F1 |
-| M2 | Sanitización de input (bloquear prompt-injections en PDF) | F1 |
-| M3 | Conversión a Markdown estructurado | F1 |
-| M4 | Detector de texto IA — prompt a Claude Sonnet (score 0-100) | F2 |
-| M5 | Detector de patrones — n-gramas + similitud coseno | F2 |
-| M6 | Validación de citas APA/IEEE — regex + Claude | F3 |
-| M7 | Reporte dual: JSON investigador + JSON revisor | F4 |
-| M8 | UI mínima: upload PDF → spinner → reporte | F4 |
-
-### SHOULD — P2 (si hay tiempo)
-
-| # | Tarea | Fase |
-|---|---|---|
-| S1 | Segmentación automática de secciones | F1 |
-| S2 | Detección de injections ocultas (texto invisible, metadatos) | F2 |
-| S3 | Cruce claims vs referencias (afirmaciones sin fuente) | F3 |
-| S4 | Score de confianza 0-100 por módulo en el reporte | F4 |
-| S5 | Fragmentos resaltados (highlight) en UI | F4 |
-| S6 | Paper de prueba con errores intencionados (demo) | F5 |
-
-> **P3 (post-hackathon):** perplexity scoring · export PDF · soporte ES/EN · historial de análisis · pitch Latam IA Responsable.
+```
+PaperGuard/
+├── frontend/
+│   └── src/
+│       ├── components/     ← UploadForm, ReportView, SectionAlert, ScoreBadge
+│       ├── pages/          ← Home, Report
+│       └── api.ts          ← llamadas al backend
+│
+├── backend/
+│   ├── main.py             ← app FastAPI
+│   ├── routers/
+│   │   └── audit.py        ← POST /audit, GET /audit/{id}
+│   ├── services/
+│   │   ├── extractor.py    ← pdfplumber + pymupdf
+│   │   ├── segmenter.py    ← detección de secciones
+│   │   ├── rag.py          ← chunking + embeddings + chromadb
+│   │   ├── reporter.py     ← score global + reporte dual
+│   │   └── checks/
+│   │       ├── ai_detector.py   ← IA + parafraseo (Claude + n-gramas)
+│   │       ├── injection.py     ← texto oculto, metadata, anotaciones
+│   │       ├── citations.py     ← CrossRef + Semantic Scholar
+│   │       ├── patterns.py      ← n-gramas + coseno (scikit-learn)
+│   │       └── unsupported.py   ← claims sin respaldo (RAG + Claude)
+│   ├── models.py           ← Pydantic models
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── PROYECTO.md
+└── README.md
+```
 
 ---
 
-## Fases de desarrollo
+## Flujo de auditoría (6 fases)
 
-### Fase 0 — Setup (Día 0)
-- [ ] Inicializar Next.js 14 + TypeScript
-- [ ] Configurar variables de entorno (`ANTHROPIC_API_KEY`)
-- [ ] Definir esquema JSON de salida compartido
-- [ ] Configurar deploy en Vercel (`main` → producción)
+### Fase 1 — Entrada y validación
+```
+POST /api/audit  (multipart: pdf file)
+  ├─ validar MIME (application/pdf)
+  ├─ validar tamaño (< 20 MB)
+  ├─ validar no encriptado
+  └─ validar texto extraíble (> 500 palabras) → si falla: 400 con motivo
+```
 
-### Fase 1 — Ingesta y Markdown (Día 1 · mañana)
-- [ ] API route `/api/upload` — recibe PDF, extrae texto
-- [ ] Sanitización anti-injection
-- [ ] Conversión a Markdown con detección de secciones
-- [ ] **Hito M1:** pipeline PDF → Markdown funcional end-to-end
+### Fase 2 — Extracción
+```
+extractor.py
+  ├─ pdfplumber  → texto visible por página + bloques con bbox
+  ├─ pymupdf     → texto oculto (color=bg, font_size<1, fuera de viewport)
+  │               metadata (Author, Creator, CreationDate, software)
+  │               anotaciones y comentarios
+  ├─ regex       → sección de referencias → parseo individual
+  └─ segmenter.py → abstract · intro · método · resultados · discusión · conclusión · refs
+```
 
-### Fase 2 — Análisis IA y patrones (Día 1 · tarde)
-- [ ] RAG: chunking + embeddings + vectra
-- [ ] Prompt de detección IA por sección → score 0-100 + fragmentos sospechosos
-- [ ] N-gramas + coseno para repetición de patrones
-- [ ] **Hito M2:** score corriendo sobre paper real
+### Fase 3 — Pre-check
+```
+IntakeResult JSON:
+  ready_for_audit: bool
+  secciones_detectadas: list
+  texto_oculto_encontrado: bool
+  referencias_raw: list
+Si ready_for_audit=false → detener flujo, informar al usuario
+```
 
-### Fase 3 — Citas e injections (Día 2 · mañana)
-- [ ] Regex APA/IEEE para extraer referencias
-- [ ] Validación con Claude (coherencia + DOI)
-- [ ] Detección de texto oculto / metadatos sospechosos
-- [ ] Cruce claims vs referencias (P2)
+### Fase 4 — Auditoría (5 checks en paralelo vía asyncio.gather)
 
-### Fase 4 — Reporte y UI (Día 2 · tarde)
-- [ ] Construir JSON dual (investigador / revisor)
-- [ ] Score de confianza por módulo
-- [ ] UI: upload → alertas por sección → reporte
-- [ ] **Hito M3:** demo completa en Vercel
+```
+┌─ 4.1 ai_detector.py   → Claude Sonnet por sección → score_ia 0-100
+│                          + parafraseo (n-gramas coseno + prompt)
+│
+├─ 4.2 injection.py     → texto oculto + metadata + anotaciones
+│                          → hallazgos con ubicación
+│
+├─ 4.3 citations.py     → CrossRef + Semantic Scholar por cada ref
+│                          → % verificadas + lista no_encontradas
+│
+├─ 4.4 patterns.py      → TfidfVectorizer + coseno
+│                          → fragmentos repetidos + % similitud
+│
+└─ 4.5 unsupported.py   → RAG: claims → verificar cita cercana
+                           → afirmaciones sin respaldo
+```
 
-### Fase 5 — Pulido y demo (Día 3)
-- [ ] Paper de prueba con errores intencionados
-- [ ] Calibrar umbrales de score
-- [ ] Preparar pitch 1 min: problema → solución → demo → track Latam
+### Fase 5 — Consolidación
+```
+reporter.py
+  ├─ combinar 5 resultados
+  ├─ score_global ponderado:
+  │    ai:30% · citations:25% · patterns:20% · unsupported:15% · injection:10%
+  └─ veredicto: "Aprobado" | "Revisión manual" | "Rechazado"
+```
+
+### Fase 6 — Salida
+```
+reporte_investigador → semáforo 🟢🟡🔴, lenguaje simple, resumen por sección
+reporte_revisor      → detalle técnico completo con evidencia y ubicación
+dashboard React      → upload · progreso · reporte visual por sección
+```
+
+---
+
+## Detección de parafraseo de IA
+
+El parafraseo (texto IA retocado para evadir detectores) se ataca en dos capas dentro del check 4.1:
+
+**Capa estadística:**
+- N-gramas (bi/trigramas) + similitud coseno entre párrafos → uniformidad de estilo = señal
+- Distribución de longitud de oraciones: IA tiende a oraciones similares en longitud
+
+**Capa LLM (prompt a Claude):**
+> "Analiza si este párrafo muestra señales de texto generado por IA y luego parafraseado: vocabulario inusualmente formal, transiciones genéricas, falta de especificidad técnica, coherencia superficial sin profundidad. Devuelve score 0-100 y razones."
+
+Claude señala patrones lingüísticos de riesgo, no afirma autoría.
 
 ---
 
@@ -134,45 +153,83 @@ UI Next.js → Vercel        ← upload · progreso · reporte visual
 
 ```jsonc
 {
-  "paper_id": "uuid",
+  "audit_id": "uuid",
   "idioma": "es",
+  "ready_for_audit": true,
   "secciones": {
     "abstract": {
-      "texto": "...",
       "score_ia": 82,
       "score_confianza": 74,
-      "alertas": ["Promete resultados no encontrados en sección de resultados"]
-    },
-    "metodologia": {
-      "score_ia": 65,
-      "alertas": ["Descripción vaga, pasos no reproducibles"]
+      "alertas": ["Promete resultados no encontrados en sección de resultados"],
+      "fragmentos_sospechosos": ["En este estudio se demuestra que..."]
     }
-    // ... intro, resultados, discusion, conclusion
+    // intro, metodologia, resultados, discusion, conclusion
   },
-  "referencias": [
-    { "cita": "García et al., 2023", "estado": "no_verificada", "razon": "DOI no encontrado" }
-  ],
-  "reporte_investigador": {
-    "resumen": "...",
-    "alertas_detalladas": [],
-    "score_global": 71
+  "checks": {
+    "ai_detector":  { "score": 78, "fragmentos": [] },
+    "injection":    { "score": 0,  "hallazgos": [] },
+    "citations":    { "score": 60, "no_encontradas": ["García et al., 2023"] },
+    "patterns":     { "score": 45, "repetidos": [] },
+    "unsupported":  { "score": 55, "sin_respaldo": [] }
   },
+  "score_global": 71,
+  "veredicto": "Revisión manual",
+  "reporte_investigador": { "resumen": "...", "nivel_riesgo": "medio" },
   "reporte_revisor": {
-    "nivel_riesgo": "medio",
-    "puntos_criticos": [],
-    "recomendacion": "Requiere revisión adicional en metodología y referencias"
+    "detalle_por_check": {},
+    "recomendacion": "Revisar metodología y referencias 3, 7, 12"
   }
 }
 ```
 
 ---
 
+## Backlog priorizado
+
+### MUST — P1 (MVP para demo)
+| # | Tarea | Fase |
+|---|---|---|
+| M1 | Setup FastAPI + estructura de carpetas backend | F0 |
+| M2 | Setup React + Vite + Tailwind | F0 |
+| M3 | Extracción texto visible (`pdfplumber`) + validaciones de entrada | F1 |
+| M4 | Extracción texto oculto + metadata (`pymupdf`) | F2 |
+| M5 | Segmentador de secciones | F2 |
+| M6 | Check 4.1: detector IA + parafraseo (Claude + n-gramas) | F4 |
+| M7 | Check 4.3: validación citas (CrossRef + Semantic Scholar) | F4 |
+| M8 | Check 4.4: patrones repetitivos (scikit-learn coseno) | F4 |
+| M9 | Consolidación + score global + reporte dual JSON | F5 |
+| M10 | UI: upload → spinner → dashboard semáforo por sección | F6 |
+
+### SHOULD — P2 (si hay tiempo)
+| # | Tarea |
+|---|---|
+| S1 | Check 4.2: injection (texto oculto, anotaciones) |
+| S2 | Check 4.5: claims sin respaldo (RAG + Claude) |
+| S3 | Score de confianza 0-100 por módulo visible en UI |
+| S4 | Fragmentos resaltados (highlight) en reporte |
+| S5 | Paper de prueba con errores intencionados |
+
+> **P3 (post-hackathon):** export PDF · soporte EN · historial · perplexity scoring.
+
+---
+
+## Deploy
+
+| Servicio | Qué corre | Config |
+|---|---|---|
+| Vercel | Frontend React | `vercel.json` en `/frontend`, env `VITE_API_URL` |
+| Railway | Backend FastAPI | `Dockerfile` en `/backend`, env `ANTHROPIC_API_KEY` |
+
+CORS en FastAPI configurado para aceptar el dominio de Vercel.
+
+---
+
 ## Seguridad y ética
 
 - El sistema **asiste**, no decide: toda alerta requiere revisión humana final.
-- Manuscritos son confidenciales: sin persistencia ni logging de contenido.
+- Manuscritos son confidenciales: sin persistencia ni logging de contenido del paper.
 - La UI debe indicar explícitamente que el análisis usa IA (Claude).
-- MVP: procesamiento en memoria, sin guardar papers en servidor.
+- No prometer "detección infalible de autoría IA" — el sistema detecta **señales de riesgo**.
 
 ---
 
@@ -190,7 +247,8 @@ UI Next.js → Vercel        ← upload · progreso · reporte visual
 
 ## Cómo validar el MVP
 
-1. Subir `paper_prueba.pdf` (con errores intencionados) a la UI en Vercel.
-2. Verificar que el JSON contiene scores y alertas por sección.
-3. Verificar que referencias fantasmas aparecen como `no_verificada`.
-4. Confirmar que la UI renderiza el reporte dual sin errores.
+1. `POST /api/audit` con PDF real → devuelve JSON con secciones detectadas.
+2. Check 4.1 devuelve `score_ia` distinto de 0 en al menos una sección.
+3. Check 4.3 marca al menos una referencia como `no_verificada`.
+4. UI muestra semáforo por sección sin crashear.
+5. Paper de prueba con errores → `veredicto: "Revisión manual"` o `"Rechazado"`.
