@@ -1,30 +1,30 @@
+import asyncio
+
 import httpx
 
 from models import CheckResult
 
 _CROSSREF = "https://api.crossref.org/works"
 _S2 = "https://api.semanticscholar.org/graph/v1/paper/search"
+_HEADERS_CR = {"User-Agent": "PaperGuard/0.1 (hackathon; mailto:paperguard@example.com)"}
 
 
-async def _verified_by_crossref(client: httpx.AsyncClient, ref: str) -> bool:
+async def _verify_one(client: httpx.AsyncClient, ref: str) -> bool:
     try:
         r = await client.get(
             _CROSSREF,
             params={"query.bibliographic": ref[:200], "rows": 1},
-            headers={"User-Agent": "PaperGuard/0.1 (hackathon; mailto:paperguard@example.com)"},
+            headers=_HEADERS_CR,
         )
         items = r.json().get("message", {}).get("items", [])
-        return bool(items and items[0].get("score", 0) >= 40)
+        if items and items[0].get("score", 0) >= 40:
+            return True
     except Exception:
-        return False
-
-
-async def _verified_by_s2(client: httpx.AsyncClient, ref: str) -> bool:
+        pass
     try:
         r = await client.get(
             _S2,
             params={"query": ref[:150], "fields": "title", "limit": 1},
-            headers={"User-Agent": "PaperGuard/0.1"},
         )
         return bool(r.json().get("data"))
     except Exception:
@@ -32,20 +32,16 @@ async def _verified_by_s2(client: httpx.AsyncClient, ref: str) -> bool:
 
 
 async def check_citations(text: str, refs: list[str] | None = None, **kwargs) -> CheckResult:
-    """Verifica referencias contra CrossRef; fallback a Semantic Scholar. Score = % no encontradas."""
-    if refs is None:
+    """Verifica referencias en paralelo: CrossRef primario, Semantic Scholar fallback."""
+    if not refs:
         refs = kwargs.get("refs", [])
     if not refs:
         return CheckResult(score=0, data={"no_encontradas": []})
 
-    not_found: list[str] = []
+    sample = refs[:20]
     async with httpx.AsyncClient(timeout=10) as client:
-        for ref in refs[:20]:
-            found = await _verified_by_crossref(client, ref)
-            if not found:
-                found = await _verified_by_s2(client, ref)
-            if not found:
-                not_found.append(ref)
+        results = await asyncio.gather(*[_verify_one(client, r) for r in sample], return_exceptions=True)
 
-    pct = int(len(not_found) / len(refs) * 100) if refs else 0
+    not_found = [ref for ref, ok in zip(sample, results) if not ok or isinstance(ok, Exception)]
+    pct = int(len(not_found) / len(sample) * 100)
     return CheckResult(score=pct, data={"no_encontradas": not_found[:10]})
