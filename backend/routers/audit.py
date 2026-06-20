@@ -45,7 +45,7 @@ async def create_audit(file: UploadFile = File(...)):
 
     ai, inj, cit, pat, uns = await asyncio.gather(
         check_ai_detector(text),
-        check_injection(text, pdf_bytes=pdf_bytes),
+        check_injection(text, pdf_bytes=pdf_bytes, refs=intake.referencias_raw),
         check_citations(text, refs=intake.referencias_raw),
         check_patterns(text),
         check_unsupported(text),
