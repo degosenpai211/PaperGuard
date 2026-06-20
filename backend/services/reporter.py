@@ -54,11 +54,11 @@ def consolidate(
         ready_for_audit=intake.ready_for_audit,
         secciones={
             s: Section(
-                score_ia=ai.score,
-                # score_confianza: promedio de checks que "pasan bien" (score bajo = buena señal)
+                # Usar score específico de la sección si lo tiene; si no, el global
+                score_ia=ai.data.get("por_seccion", {}).get(s, {}).get("score", ai.score),
                 score_confianza=max(0, 100 - score),
-                alertas=ai.data.get("razones", []),
-                fragmentos_sospechosos=ai.data.get("fragmentos", []),
+                alertas=ai.data.get("por_seccion", {}).get(s, {}).get("razones", ai.data.get("razones", [])),
+                fragmentos_sospechosos=ai.data.get("por_seccion", {}).get(s, {}).get("fragmentos", ai.data.get("fragmentos", [])),
             )
             for s in intake.secciones_detectadas
         },
@@ -77,7 +77,7 @@ def consolidate(
         ),
         reporte_revisor=ReporteRevisor(
             detalle_por_check={
-                "ai_detector": {"score": ai.score, "peso": "30%", "razones": ai.data.get("razones", []), "fragmentos": ai.data.get("fragmentos", [])},
+                "ai_detector": {"score": ai.score, "peso": "30%", "razones": ai.data.get("razones", []), "fragmentos": ai.data.get("fragmentos", []), "por_seccion": ai.data.get("por_seccion", {})},
                 "citations": {"score": citations.score, "peso": "25%", "no_encontradas": no_enc},
                 "patterns": {"score": patterns.score, "peso": "20%", "repetidos": patterns.data.get("repetidos", []), "uniformidad": patterns.data.get("uniformidad_score", 0)},
                 "unsupported": {"score": unsupported.score, "peso": "15%", "sin_respaldo": unsupported.data.get("sin_respaldo", [])},
