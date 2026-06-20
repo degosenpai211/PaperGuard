@@ -52,7 +52,15 @@ def consolidate(
     return AuditResult(
         audit_id=audit_id,
         ready_for_audit=intake.ready_for_audit,
-        secciones={s: Section() for s in intake.secciones_detectadas},
+        secciones={
+            s: Section(
+                score_ia=ai.score,
+                score_confianza=max(0, 100 - ai.score),
+                alertas=ai.data.get("alertas", []),
+                fragmentos_sospechosos=ai.data.get("fragmentos", []),
+            )
+            for s in intake.secciones_detectadas
+        },
         checks={
             "ai_detector": ai,
             "injection": injection,

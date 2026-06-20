@@ -5,7 +5,9 @@ from pydantic import BaseModel, Field
 
 class Section(BaseModel):
     score_ia: int = 0
+    score_confianza: int = 0
     alertas: list[str] = Field(default_factory=list)
+    fragmentos_sospechosos: list[str] = Field(default_factory=list)
 
 
 class CheckResult(BaseModel):

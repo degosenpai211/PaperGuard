@@ -53,7 +53,11 @@ async def create_audit(file: UploadFile = File(...)):
 
     audit_id = str(uuid4())
     result = consolidate(audit_id, intake, ai, inj, cit, pat, uns)
-    _store[audit_id] = result.model_dump()
+    dump = result.model_dump()
+    # Aplanar data{} de cada check al nivel raíz para que el frontend lo lea directo
+    for key, check in dump["checks"].items():
+        check.update(check.pop("data", {}))
+    _store[audit_id] = dump
     return {"audit_id": audit_id, "status": "completed"}
 
 
