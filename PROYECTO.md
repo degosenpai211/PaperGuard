@@ -36,26 +36,25 @@ Revisores y revistas reciben manuscritos con uso flojo o irresponsable de IA: re
 PaperGuard/
 ├── frontend/
 │   └── src/
-│       ├── components/     ← UploadForm, ReportView, SectionAlert, ScoreBadge
-│       ├── pages/          ← Home, Report
-│       └── api.ts          ← llamadas al backend
+│       ├── components/
+│       ├── pages/
+│       └── api.ts
 │
 ├── backend/
-│   ├── main.py             ← app FastAPI
-│   ├── routers/
-│   │   └── audit.py        ← POST /audit, GET /audit/{id}
+│   ├── main.py
+│   ├── routers/audit.py
 │   ├── services/
 │   │   ├── extractor.py    ← pdfplumber + pymupdf
-│   │   ├── segmenter.py    ← detección de secciones
+│   │   ├── segmenter.py
 │   │   ├── rag.py          ← chunking + embeddings + chromadb
 │   │   ├── reporter.py     ← score global + reporte dual
 │   │   └── checks/
-│   │       ├── ai_detector.py   ← IA + parafraseo (Claude + n-gramas)
-│   │       ├── injection.py     ← texto oculto, metadata, anotaciones
-│   │       ├── citations.py     ← CrossRef + Semantic Scholar
-│   │       ├── patterns.py      ← n-gramas + coseno (scikit-learn)
-│   │       └── unsupported.py   ← claims sin respaldo (RAG + Claude)
-│   ├── models.py           ← Pydantic models
+│   │       ├── ai_detector.py
+│   │       ├── injection.py
+│   │       ├── citations.py
+│   │       ├── patterns.py
+│   │       └── unsupported.py
+│   ├── models.py
 │   ├── requirements.txt
 │   └── Dockerfile
 │
@@ -134,21 +133,6 @@ dashboard React      → upload · progreso · reporte visual por sección
 
 ---
 
-## Detección de parafraseo de IA
-
-El parafraseo (texto IA retocado para evadir detectores) se ataca en dos capas dentro del check 4.1:
-
-**Capa estadística:**
-- N-gramas (bi/trigramas) + similitud coseno entre párrafos → uniformidad de estilo = señal
-- Distribución de longitud de oraciones: IA tiende a oraciones similares en longitud
-
-**Capa LLM (prompt a Claude):**
-> "Analiza si este párrafo muestra señales de texto generado por IA y luego parafraseado: vocabulario inusualmente formal, transiciones genéricas, falta de especificidad técnica, coherencia superficial sin profundidad. Devuelve score 0-100 y razones."
-
-Claude señala patrones lingüísticos de riesgo, no afirma autoría.
-
----
-
 ## Esquema JSON de salida
 
 ```jsonc
@@ -218,9 +202,7 @@ Claude señala patrones lingüísticos de riesgo, no afirma autoría.
 | Servicio | Qué corre | Config |
 |---|---|---|
 | Vercel | Frontend React | `vercel.json` en `/frontend`, env `VITE_API_URL` |
-| Railway | Backend FastAPI | `Dockerfile` en `/backend`, env `ANTHROPIC_API_KEY` |
-
-CORS en FastAPI configurado para aceptar el dominio de Vercel.
+| Railway | Backend FastAPI | `Dockerfile` en `/backend`, env `ANTHROPIC_API_KEY`, CORS → dominio Vercel |
 
 ---
 
@@ -230,18 +212,6 @@ CORS en FastAPI configurado para aceptar el dominio de Vercel.
 - Manuscritos son confidenciales: sin persistencia ni logging de contenido del paper.
 - La UI debe indicar explícitamente que el análisis usa IA (Claude).
 - No prometer "detección infalible de autoría IA" — el sistema detecta **señales de riesgo**.
-
----
-
-## Alineación con el hackathon
-
-| Criterio | PaperGuard |
-|---|---|
-| Track | Latam · Technical AI Safety |
-| Problema regional | Integridad académica en español; revistas latinoamericanas |
-| Evaluación de sistemas IA | Detecta uso irresponsable de IA en contexto académico |
-| Fairness/Safety para español | Modelo y reporte en español por defecto |
-| Enfoque verificable | Señales con evidencia del paper (RAG), no juicio absoluto |
 
 ---
 
