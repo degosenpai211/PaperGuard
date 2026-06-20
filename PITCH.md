@@ -1,11 +1,10 @@
 # PaperGuard: A RAG-Augmented Editorial Copilot for Detecting Irresponsible AI Use in Spanish-Language Academic Manuscripts
 
-**Author name 1** — Affiliation  
-**Author name 2** — Affiliation  
-**Author name 3** — Affiliation  
-**Author name 4** — Affiliation  
-**Author name 5** — Affiliation  
-**Author name 6** — Affiliation  
+**Author name 1** — Dax kenji Tellez Duran  
+**Author name 2** — Diego Armando Sarmiento Osinaga  
+**Author name 3** — Sara Raquel Saunero Salas  
+**Author name 4** — Andrew Maddox Taborga Coca  
+**Author name 5** — Fabio Andres Puma Menchaca
 
 *With Apart Research*
 
